@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自然音目覚まし時計</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 30px;
+      padding: 40px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      text-align: center;
+      color: #667eea;
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #999;
+      font-size: 14px;
+      margin-bottom: 30px;
+    }
+    .time-display {
+      text-align: center;
+      font-size: 48px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 30px;
+      font-family: 'Courier New', monospace;
+    }
+    .input-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+    }
+    input[type="time"] {
+      width: 100%;
+      padding: 15px;
+      font-size: 24px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      text-align: center;
+    }
+    .sound-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .sound-btn {
+      padding: 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      background: #f5f5f5;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    .sound-btn.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-color: #667eea;
+    }
+    .alarm-btn {
+      width: 100%;
+      padding: 18px;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      margin-top: 20px;
+      transition: transform 0.2s;
+    }
+    .alarm-btn:hover {
+      transform: scale(1.02);
+    }
+    .alarm-btn.active {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    .status {
+      text-align: center;
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .status.set {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+    .status.ringing {
+      background: #fff3e0;
+      color: #f57c00;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔔 目覚まし時計</h1>
+    <p class="subtitle">優しい自然音で気持ちよく目覚めよう</p>
+    
+    <div class="time-display" id="currentTime">00:00:00</div>
+    
+    <div class="input-group">
+      <label>アラーム時刻</label>
+      <input type="time" id="alarmTime" value="07:00">
+    </div>
+    
+    <div class="input-group">
+      <label>起床音を選択</label>
+      <div class="sound-grid">
+        <button class="sound-btn active" data-sound="birds">🐦 鳥のさえずり</button>
+        <button class="sound-btn" data-sound="waves">🌊 波の音</button>
+        <button class="sound-btn" data-sound="rain">🌧️ 雨の音</button>
+        <button class="sound-btn" data-sound="forest">🌲 森の音</button>
+      </div>
+    </div>
+    
+    <button class="alarm-btn" id="toggleBtn">アラームをセット</button>
+    
+    <div id="status"></div>
+  </div>
+
+  <script>
+    let alarmSet = false;
+    let isRinging = false;
+    let selectedSound = 'birds';
+    let audioContext = null;
+    let oscillator = null;
+
+    // 現在時刻の表示
+    function updateTime() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('currentTime').textContent = `${h}:${m}:${s}`;
+      
+      if (alarmSet && !isRinging) {
+        const alarmTime = document.getElementById('alarmTime').value;
+        if (`${h}:${m}` === alarmTime) {
+          triggerAlarm();
+        }
+      }
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+
+    // 音選択
+    document.querySelectorAll('.sound-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedSound = btn.dataset.sound;
+      });
+    });
+
+    // アラームトグル
+    document.getElementById('toggleBtn').addEventListener('click', () => {
+      if (isRinging) {
+        stopAlarm();
+      } else {
+        alarmSet = !alarmSet;
+        updateStatus();
+      }
+    });
+
+    function updateStatus() {
+      const status = document.getElementById('status');
+      const btn = document.getElementById('toggleBtn');
+      
+      if (isRinging) {
+        status.className = 'status ringing';
+        status.textContent = '🔔 おはようございます！';
+        btn.textContent = 'アラームを止める';
+        btn.classList.add('active');
+      } else if (alarmSet) {
+        const time = document.getElementById('alarmTime').value;
+        status.className = 'status set';
+        status.textContent = `⏰ ${time} にセット済み`;
+        btn.textContent = 'アラーム解除';
+        btn.classList.remove('active');
+      } else {
+        status.className = 'status';
+        status.textContent = '';
+        btn.textContent = 'アラームをセット';
+        btn.classList.remove('active');
+      }
+    }
+
+    function triggerAlarm() {
+      isRinging = true;
+      playSound();
+      updateStatus();
+    }
+
+    function playSound() {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      const frequencies = {
+        birds: 2000,
+        waves: 200,
+        rain: 400,
+        forest: 1000
+      };
+      
+      oscillator.frequency.value = frequencies[selectedSound];
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 3);
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.start();
+    }
+
+    function stopAlarm() {
+      if (oscillator) {
+        oscillator.stop();
+        audioContext.close();
+      }
+      isRinging = false;
+      alarmSet = false;
+      updateStatus();
+    }
+  </script>
+</body>
+</html>
