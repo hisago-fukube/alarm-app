@@ -155,6 +155,14 @@
     let selectedSound = 'birds';
     let audioContext = null;
     let oscillator = null;
+    let gainNode = null;
+
+    const frequencies = {
+      birds: 2000,
+      waves: 200,
+      rain: 400,
+      forest: 1000
+    };
 
     // 現在時刻の表示
     function updateTime() {
@@ -174,14 +182,37 @@
     setInterval(updateTime, 1000);
     updateTime();
 
-    // 音選択
+    // 音選択（プレビュー音付き）
     document.querySelectorAll('.sound-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         selectedSound = btn.dataset.sound;
+        
+        // プレビュー音を鳴らす
+        playPreviewSound();
       });
     });
+
+    // プレビュー音を鳴らす（短く）
+    function playPreviewSound() {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const context = new AudioContext();
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      
+      osc.frequency.value = frequencies[selectedSound];
+      osc.type = 'sine';
+      
+      gain.gain.setValueAtTime(0.2, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
+      
+      osc.connect(gain);
+      gain.connect(context.destination);
+      
+      osc.start();
+      osc.stop(context.currentTime + 0.5);
+    }
 
     // アラームトグル
     document.getElementById('toggleBtn').addEventListener('click', () => {
@@ -218,42 +249,9 @@
 
     function triggerAlarm() {
       isRinging = true;
-      playSound();
+      playAlarmSound();
       updateStatus();
     }
 
-    function playSound() {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      const frequencies = {
-        birds: 2000,
-        waves: 200,
-        rain: 400,
-        forest: 1000
-      };
-      
-      oscillator.frequency.value = frequencies[selectedSound];
-      oscillator.type = 'sine';
-      
-      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 3);
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      oscillator.start();
-    }
-
-    function stopAlarm() {
-      if (oscillator) {
-        oscillator.stop();
-        audioContext.close();
-      }
-      isRinging = false;
-      alarmSet = false;
-      updateStatus();
-    }
-  </script>
-</body>
-</html>
+    function playAlarmSound() {
+      const AudioContext = window.AudioC
