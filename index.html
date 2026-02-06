@@ -164,7 +164,6 @@
       forest: 1000
     };
 
-    // 現在時刻の表示
     function updateTime() {
       const now = new Date();
       const h = String(now.getHours()).padStart(2, '0');
@@ -182,19 +181,15 @@
     setInterval(updateTime, 1000);
     updateTime();
 
-    // 音選択（プレビュー音付き）
     document.querySelectorAll('.sound-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         selectedSound = btn.dataset.sound;
-        
-        // プレビュー音を鳴らす
         playPreviewSound();
       });
     });
 
-    // プレビュー音を鳴らす（短く）
     function playPreviewSound() {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       const context = new AudioContext();
@@ -214,7 +209,6 @@
       osc.stop(context.currentTime + 0.5);
     }
 
-    // アラームトグル
     document.getElementById('toggleBtn').addEventListener('click', () => {
       if (isRinging) {
         stopAlarm();
@@ -254,4 +248,31 @@
     }
 
     function playAlarmSound() {
-      const AudioContext = window.AudioC
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      audioContext = new AudioContext();
+      oscillator = audioContext.createOscillator();
+      gainNode = audioContext.createGain();
+      
+      oscillator.frequency.value = frequencies[selectedSound];
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 3);
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.start();
+    }
+
+    function stopAlarm() {
+      if (oscillator) {
+        oscillator.stop();
+        audioContext.close();
+      }
+      isRinging = false;
+      alarmSet = false;
+      updateStatus();
+    }
+  </script>
+</body>
+</html>
